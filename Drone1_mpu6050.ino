@@ -34,7 +34,6 @@ void setup() {
   Wire.setClock(100000); // börja stabilt (kan öka till 400k när allt är okej)
   Serial.begin(500000);
  
-
   setup_mpu_6050_registers();
 
   // Nollställ kalibreringssummor
@@ -111,17 +110,10 @@ angle_roll_gy  += (gyro_y / 65.5f) * dt;
   angle_roll_constrained = constrain(angle_roll, -90.0, 90.0);
   angle_pitch_constrained = constrain(angle_pitch, -90.0, 90.0);
 
-
-
-
   Serial.print("Roll: ");
   Serial.print(angle_roll_constrained, 2);
-  
-
   Serial.print("Pitch: ");
   Serial.println(angle_pitch_constrained, 2);
- 
-
 }
 
 void setup_mpu_6050_registers() {
@@ -153,7 +145,7 @@ void setup_mpu_6050_registers() {
  * 1. Sends a 'Repeated Start' to the device to select the starting register.
  * 2. Requests 'n' bytes of data.
  * 3. Waits for data to arrive in the buffer, but aborts if it takes longer 
- * than 3ms (3000 micros) to prevent the drone's software from freezing.
+ *    than 3ms (3000 micros) to prevent the drone's software from freezing.
  * 4. Transfers the received bytes into the provided buffer.
  * 
  * @return true if all bytes were read successfully.
@@ -184,8 +176,8 @@ bool i2cReadBytes(uint8_t addr, uint8_t startReg, uint8_t n, uint8_t* buf) {
  * 2. It collects an array of 14 bytes.
  * 3. Each variable is 2 bytes (2 8-bits). 
  * 4. It combines 2 bytes into a int16_t by type casting. Without int16_t, the data contained in it is unreadable
- * For example acc_x contains 16 bits (2 8-bits) of information from the sensor. The sensor can only send 8-bits
- * at a time. The first 8 bits is placed in position [0] and the second is placed in position [1] of the 14 bytes vector buf. 
+ *    For example acc_x contains 16 bits (2 8-bits) of information from the sensor. The sensor can only send 8-bits
+ *    at a time. The first 8 bits is placed in position [0] and the second is placed in position [1] of the 14 bytes vector buf. 
  *
  * @return true if data is okay.
  * @return false if there was a connection error.
@@ -212,7 +204,7 @@ bool read_mpu_6050_data() {
  * This function:
  * 1. Checks if the SDA line is stuck LOW.
  * 2. Manually toggles the SCL (clock) line up to 9 times to force the slave 
- * to finish its current byte and release the SDA line.
+ *    to finish its current byte and release the SDA line.
  * 3. Sends a manual I2C STOP condition to formally reset the bus state.
  *
  * @return true when the recovery sequence is complete.
@@ -239,13 +231,23 @@ bool i2cRecoverBus() {
   return true;
 }
 
+/**
+ * @brief Reinitializes the I2C interface in a safe and controlled way.
+ *
+ * 1. Stops the current Wire (I2C) session to reset the internal state machine.
+ * 2. Calls i2cRecoverBus() to release the SDA/SCL lines if a slave device
+ *    is holding the bus LOW.
+ * 3. Reinitializes the Wire library.
+ * 4. Reapplies timeout protection to avoid blocking behavior.
+ * 5. Restores a conservative I2C clock speed for stable communication.
+ */
 void i2cReinit() {
   Wire.end();
-  i2cRecoverBus();      // frikoppla ev. låsning
+  i2cRecoverBus();
   Wire.begin();
   #if defined(TWBR) || ARDUINO >= 10600
   Wire.setWireTimeout(3000, true);
   #endif
-  Wire.setClock(100000); // börja lugnt
+  Wire.setClock(100000);
   delay(5);
 }

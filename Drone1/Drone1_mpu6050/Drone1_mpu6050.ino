@@ -29,7 +29,7 @@ void calc_angle(float dt);
 
 
 void setup() {
-  Wire.begin();
+  Wire.begin(); // Start communication
   Wire.setWireTimeout(3000, true); 
   Wire.setClock(100000); 
   Serial.begin(500000);

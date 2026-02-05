@@ -1,14 +1,20 @@
+/*************************************************
+ * Includes
+ *************************************************/
 #include <Servo.h>
 
-Servo motorRollM;   // Pin 9
-Servo motorRollP;  // Pin 10
-Servo motorPitchM;  // Pin 11
-Servo motorPitchP;  // Pin 12
+/*************************************************
+ * Variables
+ *************************************************/
+Servo motorM1; //Motor front-left
+Servo motorM2; //Motor front-right
+Servo motorM3; //Motor back-left
+Servo motorM4; //Motor back-right
 
 float R = 0;
 float P = 0;
-
 double throttle=1400;
+
 
 void setup() {
   motor_setup();
@@ -16,39 +22,86 @@ void setup() {
 }
 
 void loop() {
-
-
-motor_drive(throttle, R, P);
-
+  motor_drive(throttle, R, P);
 }
 
-/**********************************************************************************/
+/**
+ * @brief Initializes and attaches all four motor outputs (ESC/servo signals).
+ *
+ * This function configures the PWM/servo output channels used to drive the
+ * quadcopter's four ESCs (or any device expecting servo-style pulses).
+ * Each Servo channel is attached with a defined pulse range:
+ *  - 1000 µs = minimum throttle / idle
+ *  - 2000 µs = maximum throttle
+ *
+ * Motor mapping (matches the quad layout documentation below):
+ *  - M1 = Front Left  (pin 5)
+ *  - M2 = Front Right (pin 6)
+ *  - M3 = Back  Left  (pin 9)
+ *  - M4 = Back  Right (pin 10)
+ */
 void motor_setup() {
-  motorRollM.attach(9, 1000, 2000);
-  motorRollP.attach(10, 1000, 2000);
-  motorPitchM.attach(11, 1000, 2000);
-  motorPitchP.attach(12, 1000, 2000);
+  motorM1.attach(5, 1000, 2000);
+  motorM2.attach(6, 1000, 2000);
+  motorM3.attach(9, 1000, 2000);
+  motorM4.attach(10, 1000, 2000);
 }
 
+
+/**
+ * @brief Computes motor outputs using a Roll/Pitch mixer and writes PWM pulses.
+ *
+ *         QUADCOPTER MOTOR LAYOUT & AXES (X-CONFIG)
+ *
+ *                          P+  
+ *                 (Pitch Up / Nose Up)
+ *
+ *                 M1 (FL)        M2 (FR)
+ *                  [ ]------------[ ]
+ *                    \            /
+ *                     \          /
+ *                      \        /
+ *                       \      /
+ *    R+ (Roll Left)       BODY         R- (Roll Right) 
+ *                       /      \
+ *                      /        \
+ *                     /          \
+ *                    /            \
+ *                  [ ]------------[ ]
+ *                 M3 (BL)        M4 (BR)
+ *
+ *                          P-  
+ *                (Pitch Down / Nose Down)
+ *
+ *  Motor positions:
+ *  M1 = Front Left
+ *  M2 = Front Right
+ *  M3 = Back Left
+ *  M4 = Back Right
+ *
+ *  Control effects:
+ *  Roll  +R → Right motors (M2, M4) increase
+ *  Roll  -R → Left motors  (M1, M3) increase
+ *
+ *  Pitch +P → Back motors  (M3, M4) increase
+ *  Pitch -P → Front motors (M1, M2) increase
+ *
+ *************************************************/
 void motor_drive(double throttle, float R, float P) {
   
-// Krav: R+ ska öka M2 & M3 (fram-motorer)
-//       P+ ska öka M3 & M4 (höger sida) — byt tecken på P om du vill tvärtom
-float MotorInput1 = throttle - R - P; // M1 bak-vänster
-float MotorInput2 = throttle + R - P; // M2 fram-vänster
-float MotorInput3 = throttle + R + P; // M3 fram-höger
-float MotorInput4 = throttle - R + P; // M4 bak-höger
+  float MotorInput1 = throttle - R - P;
+  float MotorInput2 = throttle + R - P;
+  float MotorInput3 = throttle - R + P;
+  float MotorInput4 = throttle + R + P;
 
-// Begränsa och skriv ut
-MotorInput1 = constrain(MotorInput1, 1000, 2000);
-MotorInput2 = constrain(MotorInput2, 1000, 2000);
-MotorInput3 = constrain(MotorInput3, 1000, 2000);
-MotorInput4 = constrain(MotorInput4, 1000, 2000);
+  MotorInput1 = constrain(MotorInput1, 1000, 2000);
+  MotorInput2 = constrain(MotorInput2, 1000, 2000);
+  MotorInput3 = constrain(MotorInput3, 1000, 2000);
+  MotorInput4 = constrain(MotorInput4, 1000, 2000);
 
-motorRollM.writeMicroseconds((int)MotorInput1);   // M1
-motorPitchP.writeMicroseconds((int)MotorInput2);  // M2
-motorRollP.writeMicroseconds((int)MotorInput3);   // M3
-motorPitchM.writeMicroseconds((int)MotorInput4);  // M4
+  motorM1.writeMicroseconds((int)MotorInput1);
+  motorM2.writeMicroseconds((int)MotorInput2);
+  motorM3.writeMicroseconds((int)MotorInput3);
+  motorM4.writeMicroseconds((int)MotorInput4);
 
 }
-/**********************************************************************************/

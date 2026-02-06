@@ -22,7 +22,9 @@ float outerKpPitch = 3.0f;
 // ==== INNER RATE LOOP ====
 float innerErrorRoll, innerErrorPitch;
 float innerErrorRollPrev = 0, innerErrorPitchPrev = 0;
-float rateI_R = 0, rateI_P = 0;
+float pR = 0, pP = 0;
+float iR = 0, iP = 0;
+float dR = 0, dP = 0;
 float outRateR = 0, outRateP = 0;
 float kP_Roll = 0.015f, kI_Roll = 0.0f, kD_Roll = 0.0045f;
 float kP_Pitch = 0.035f, kI_Pitch = 0.0f, kD_Pitch = 0.0045f;
@@ -48,48 +50,41 @@ throttle = map(potFromNano, 0, 1023, 1000, 1500);   // snällare intervall förs
 
 //Nollställ I-led när throttle är låg
 if (throttle < 1100) {
-  rateI_R = 0;
-  rateI_P = 0;
+  iR = 0;
+  iP = 0;
 }
 
-outerErrorRoll = desired_angle - angle_roll_constrained;   // roll-vinkel fel (°)
-outerErrorPitch = desired_angle - angle_pitch_constrained;  // pitch-vinkel fel (°)
+// ======= Calculate outer loop (angle) =======
+outerErrorRoll = desired_angle - angle_roll_constrained;
+outerErrorPitch = desired_angle - angle_pitch_constrained;
 
-// Outer-loop: bara P-led, ger rate-kommando (°/s)
 desiredRateRoll = outerKpRoll * outerErrorRoll;
 desiredRatePitch = outerKpPitch * outerErrorPitch;
 
-// Begränsa önskade rates
 desiredRateRoll = constrain(desiredRateRoll, -120.0f, 120.0f);
 desiredRatePitch = constrain(desiredRatePitch, -120.0f, 120.0f);
 
-// MPU 500 dps ⇒ 65.5 LSB/(°/s). Kolla att axlarna stämmer mot din orientering.
-float rateRoll_meas  =  (float)gyro_y / 65.5f;  // din kod använder gyro_y för roll
-float ratePitch_meas =  (float)gyro_x / 65.5f;  // och gyro_x för pitch
+// ======= Calculate inner loop (acc) =======
+float rateRoll_meas  =  (float)gyro_y / 65.5f;
+float ratePitch_meas =  (float)gyro_x / 65.5f;
 
-// Rate-fel
 innerErrorRoll = desiredRateRoll - rateRoll_meas;
 innerErrorPitch = desiredRatePitch - ratePitch_meas;
 
-// P
-float pR = kP_Roll * innerErrorRoll;
-float pP = kP_Pitch * innerErrorPitch;
+pR = kP_Roll * innerErrorRoll;
+pP = kP_Pitch * innerErrorPitch;
 
-// I (trapezoidalt, klamp)
-rateI_R += kI_Roll * innerErrorRoll * dt;
-rateI_P += kI_Pitch * innerErrorPitch * dt;
-rateI_R = constrain(rateI_R, -RATE_I_LIM, RATE_I_LIM);
-rateI_P = constrain(rateI_P, -RATE_I_LIM, RATE_I_LIM);
+iR += kI_Roll * innerErrorRoll * dt;
+iP += kI_Pitch * innerErrorPitch * dt;
+iR = constrain(iR, -RATE_I_LIM, RATE_I_LIM);
+iP = constrain(iP, -RATE_I_LIM, RATE_I_LIM);
 
-// D på felet (diskret derivata). Med låg DLPF räcker detta.
-float dR = kD_Roll * (innerErrorRoll - innerErrorRollPrev) / dt;
-float dP = kD_Pitch * (innerErrorPitch - innerErrorPitchPrev) / dt;
-innerErrorRollPrev = innerErrorRoll;
-innerErrorPitchPrev = innerErrorPitch;
+dR = kD_Roll * (innerErrorRoll - innerErrorRollPrev) / dt;
+dP = kD_Pitch * (innerErrorPitch - innerErrorPitchPrev) / dt;
 
-// Rate-utgång
-outRateR = pR + rateI_R + dR;
-outRateP = pP + rateI_P + dP;
+// ======= Calculate output =======
+outRateR = pR + iR + dR;
+outRateP = pP + iP + dP;
 
 // Klamp på innerloopens utgång (detta blir din “R” och “P” till mixern)
 outRateR = constrain(outRateR, -RATE_OUT_LIM, RATE_OUT_LIM);
@@ -100,5 +95,8 @@ if (throttle < 1150) throttle = 1150;
 
 float R = -outRateR;   // Roll (fram/bak)
 float P = outRateP;   // Pitch (vänster/höger)  // byt till P = -PID2; om sidled blir fel
+
+innerErrorRollPrev = innerErrorRoll;
+innerErrorPitchPrev = innerErrorPitch;
 
 }

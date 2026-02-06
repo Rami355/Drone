@@ -24,8 +24,8 @@ bool i2cReadBytes(uint8_t addr, uint8_t startReg, uint8_t n, uint8_t* buf); //Re
 bool read_mpu_6050_data(); //Combines values from the 14 bytes into variables.
 bool i2cRecoverBus(); //Try to recover a stuck I2C bus.
 void i2cReinit(); //Reinitializes I2C bus.
-void calibrate_mpu_6050(); 
-void calc_angle(float dt);
+void calibrate_mpu_6050(); // Calculates the average sensor "drift" while stationary to ensure the drone's starting rotation is zero.
+void calc_angle(float dt); // Merges gyro and accelerometer data using a filter to determine the drone's actual tilt in degrees.
 
 
 void setup() {
@@ -205,6 +205,18 @@ void i2cReinit() {
   delay(5);
 }
 
+/**
+ * @brief Calibrates the MPU6050 by calculating the gyroscope bias.
+ * * This method determines the 'offset' or 'drift' of the gyroscope while the 
+ * drone is stationary. It takes 2000 samples and calculates the average value 
+ * for the X, Y, and Z axes. 
+ * * IMPORTANT: The drone must remain perfectly still on a flat surface during this 
+ * process. If the sensor fails to read, the function attempts an I2C bus recovery 
+ * and retries the measurement.
+ * * The resulting averages (gyro_x_cal, etc.) are subtracted from all future raw 
+ * readings to ensure the drone doesn't think it's moving when it's still.
+ */
+
 void calibrate_mpu_6050() {
   gyro_x_cal = 0;
   gyro_y_cal = 0;
@@ -231,6 +243,22 @@ void calibrate_mpu_6050() {
   gyro_y_cal /= 2000;
   gyro_z_cal /= 2000;
 }
+
+/**
+ * @brief SENSOR FUSION: Combines Gyro and Accel data for tilt calculation.
+ * * Uses a COMPLEMENTARY FILTER (98/2 split) to determine orientation:
+ * 1. GYROSCOPE (98%): Provides smooth, high-speed movement data. Multiplies 
+ * angular velocity by time (dt) to track changes. High reliability in 
+ * the short-term, but "drifts" over time.
+ * 2. ACCELEROMETER (2%): Uses gravity as a reference to find 'Down'. 
+ * Provides long-term stability to cancel out Gyro drift. Sensitive to 
+ * vibration noise, so its influence is minimized.
+ * * Result: A stable, lag-free angle (angle_pitch/roll) used for PID control.
+ * 
+ * 65.5: Scale factor to convert raw gyro bits to degrees/sec.
+ * 57.296: Converts radians (from atan2) to degrees.
+ * 0.98 / 0.02: The "Weighting" that balances speed (Gyro) vs. stability (Accel).
+ */
 
 void calc_angle(float dt) {
   gyro_x -= gyro_x_cal;

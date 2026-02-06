@@ -9,30 +9,23 @@ int16_t gyro_x = 0;
 int potFromNano = 0;
 
 float desired_angle = 0.0f;
-
+double throttle=1400;
 /**********************************************************************************/
 
 
-float error1, error2, previous_error1, previous_error2;
-double throttle=1400;
+// ==== OUTER RATE LOOP ====
+float outerErrorRoll, outerErrorPitch;
+float desiredRateRoll = 0, desiredRatePitch = 0;
+float outerKpRoll = 3.0f;
+float outerKpPitch = 3.0f;
 
-// ==== INNER RATE LOOP (Roll/Pitch) ====
-float rateErrR, rateErrP;
-float ratePrevErrR = 0, ratePrevErrP = 0;
+// ==== INNER RATE LOOP ====
+float innerErrorRoll, innerErrorPitch;
+float innerErrorRollPrev = 0, innerErrorPitchPrev = 0;
 float rateI_R = 0, rateI_P = 0;
-float outRateR = 0, outRateP = 0;   // detta går in i mixern som R,P
-
-// Outer (attitude) -> DesiredRate i °/s
-float desiredRateR = 0, desiredRateP = 0;
-
-// Outer-loop gains (vinkel -> rate)
-float kP_att_R = 3.0f;  // start: 3–8
-float kP_att_P = 3.0f;  // samma som ovan
-
-// Inner rate-loop gains (rate PID)
-// Börja försiktigt; höj P först, sedan D; I sist.
-float kP_rate_R = 0.015f, kI_rate_R = 0.0f, kD_rate_R = 0.0045f;
-float kP_rate_P = 0.035f, kI_rate_P = 0.0f, kD_rate_P = 0.0045f;
+float outRateR = 0, outRateP = 0;
+float kP_Roll = 0.015f, kI_Roll = 0.0f, kD_Roll = 0.0045f;
+float kP_Pitch = 0.035f, kI_Pitch = 0.0f, kD_Pitch = 0.0045f;
 
 // Begränsningar
 const float RATE_I_LIM = 300.0f;     // anti-windup
@@ -44,7 +37,7 @@ void setup() {
 
 
 void loop() {
-    static uint32_t tPrev = micros();
+  static uint32_t tPrev = micros();
   uint32_t tNow = micros();
   float dt = (tNow - tPrev) * 1e-6f;
   tPrev = tNow;
@@ -59,40 +52,40 @@ if (throttle < 1100) {
   rateI_P = 0;
 }
 
-error1 = desired_angle - angle_roll_constrained;   // roll-vinkel fel (°)
-error2 = desired_angle - angle_pitch_constrained;  // pitch-vinkel fel (°)
+outerErrorRoll = desired_angle - angle_roll_constrained;   // roll-vinkel fel (°)
+outerErrorPitch = desired_angle - angle_pitch_constrained;  // pitch-vinkel fel (°)
 
 // Outer-loop: bara P-led, ger rate-kommando (°/s)
-desiredRateR = kP_att_R * error1;
-desiredRateP = kP_att_P * error2;
+desiredRateRoll = outerKpRoll * outerErrorRoll;
+desiredRatePitch = outerKpPitch * outerErrorPitch;
 
 // Begränsa önskade rates
-desiredRateR = constrain(desiredRateR, -120.0f, 120.0f);
-desiredRateP = constrain(desiredRateP, -120.0f, 120.0f);
+desiredRateRoll = constrain(desiredRateRoll, -120.0f, 120.0f);
+desiredRatePitch = constrain(desiredRatePitch, -120.0f, 120.0f);
 
 // MPU 500 dps ⇒ 65.5 LSB/(°/s). Kolla att axlarna stämmer mot din orientering.
 float rateRoll_meas  =  (float)gyro_y / 65.5f;  // din kod använder gyro_y för roll
 float ratePitch_meas =  (float)gyro_x / 65.5f;  // och gyro_x för pitch
 
 // Rate-fel
-rateErrR = desiredRateR - rateRoll_meas;
-rateErrP = desiredRateP - ratePitch_meas;
+innerErrorRoll = desiredRateRoll - rateRoll_meas;
+innerErrorPitch = desiredRatePitch - ratePitch_meas;
 
 // P
-float pR = kP_rate_R * rateErrR;
-float pP = kP_rate_P * rateErrP;
+float pR = kP_Roll * innerErrorRoll;
+float pP = kP_Pitch * innerErrorPitch;
 
 // I (trapezoidalt, klamp)
-rateI_R += kI_rate_R * rateErrR * dt;
-rateI_P += kI_rate_P * rateErrP * dt;
+rateI_R += kI_Roll * innerErrorRoll * dt;
+rateI_P += kI_Pitch * innerErrorPitch * dt;
 rateI_R = constrain(rateI_R, -RATE_I_LIM, RATE_I_LIM);
 rateI_P = constrain(rateI_P, -RATE_I_LIM, RATE_I_LIM);
 
 // D på felet (diskret derivata). Med låg DLPF räcker detta.
-float dR = kD_rate_R * (rateErrR - ratePrevErrR) / dt;
-float dP = kD_rate_P * (rateErrP - ratePrevErrP) / dt;
-ratePrevErrR = rateErrR;
-ratePrevErrP = rateErrP;
+float dR = kD_Roll * (innerErrorRoll - innerErrorRollPrev) / dt;
+float dP = kD_Pitch * (innerErrorPitch - innerErrorPitchPrev) / dt;
+innerErrorRollPrev = innerErrorRoll;
+innerErrorPitchPrev = innerErrorPitch;
 
 // Rate-utgång
 outRateR = pR + rateI_R + dR;

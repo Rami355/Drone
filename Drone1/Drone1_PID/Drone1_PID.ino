@@ -25,9 +25,11 @@ float innerErrorRollPrev = 0, innerErrorPitchPrev = 0;
 float pR = 0, pP = 0;
 float iR = 0, iP = 0;
 float dR = 0, dP = 0;
-float outRateR = 0, outRateP = 0;
+
 float kP_Roll = 0.015f, kI_Roll = 0.0f, kD_Roll = 0.0045f;
 float kP_Pitch = 0.035f, kI_Pitch = 0.0f, kD_Pitch = 0.0045f;
+
+float outputR = 0, outputP = 0;
 
 // Begränsningar
 const float RATE_I_LIM = 300.0f;     // anti-windup
@@ -83,18 +85,18 @@ dR = kD_Roll * (innerErrorRoll - innerErrorRollPrev) / dt;
 dP = kD_Pitch * (innerErrorPitch - innerErrorPitchPrev) / dt;
 
 // ======= Calculate output =======
-outRateR = pR + iR + dR;
-outRateP = pP + iP + dP;
+outputR = pR + iR + dR;
+outputP = pP + iP + dP;
 
 // Klamp på innerloopens utgång (detta blir din “R” och “P” till mixern)
-outRateR = constrain(outRateR, -RATE_OUT_LIM, RATE_OUT_LIM);
-outRateP = constrain(outRateP, -RATE_OUT_LIM, RATE_OUT_LIM);
+outputR = constrain(outputR, -RATE_OUT_LIM, RATE_OUT_LIM);
+outputP = constrain(outputP, -RATE_OUT_LIM, RATE_OUT_LIM);
 
 // Håll en liten min-gas så att motorerna alltid snurrar lite
 if (throttle < 1150) throttle = 1150;
 
-float R = -outRateR;   // Roll (fram/bak)
-float P = outRateP;   // Pitch (vänster/höger)  // byt till P = -PID2; om sidled blir fel
+float R = -outputR;   // Roll (fram/bak)
+float P = outputP;   // Pitch (vänster/höger)  // byt till P = -PID2; om sidled blir fel
 
 innerErrorRollPrev = innerErrorRoll;
 innerErrorPitchPrev = innerErrorPitch;

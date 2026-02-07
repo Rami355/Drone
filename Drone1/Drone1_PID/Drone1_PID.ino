@@ -95,8 +95,8 @@ outputP = constrain(outputP, -RATE_OUT_LIM, RATE_OUT_LIM);
 // Håll en liten min-gas så att motorerna alltid snurrar lite
 if (throttle < 1150) throttle = 1150;
 
-float R = -outputR;   // Roll (fram/bak)
-float P = outputP;   // Pitch (vänster/höger)  // byt till P = -PID2; om sidled blir fel
+float R = outputR;   // Roll (Left/Right)
+float P = outputP;   // Pitch (Forward/Backward)
 
 innerErrorRollPrev = innerErrorRoll;
 innerErrorPitchPrev = innerErrorPitch;

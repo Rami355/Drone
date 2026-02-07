@@ -36,6 +36,7 @@ const float RATE_I_LIM = 300.0f;     // anti-windup
 const float RATE_OUT_LIM = 600.0f;   // motsvarar ungefär ditt gamla PID clamp
 
 void setup() {
+  Serial.begin(115200);
 
 }
 
@@ -48,6 +49,8 @@ void loop() {
   
   if (dt < 0.002f || dt > 0.01f) dt = 0.004f;
 
+//*************************************************************************************
+//*************************************   PID     *************************************
 throttle = map(potFromNano, 0, 1023, 1000, 1500);   // snällare intervall först
 
 //Nollställ I-led när throttle är låg
@@ -100,5 +103,18 @@ float P = outputP;   // Pitch (Forward/Backward)
 
 innerErrorRollPrev = innerErrorRoll;
 innerErrorPitchPrev = innerErrorPitch;
+
+//*************************************************************************************
+//*************************************   BLDC     ************************************
+  float MotorInput1 = throttle - R + P;
+  float MotorInput2 = throttle + R + P;
+  float MotorInput3 = throttle - R - P;
+  float MotorInput4 = throttle + R - P;
+
+Serial.print("M1: "); Serial.print(MotorInput1);
+Serial.print("  M2: "); Serial.print(MotorInput2);
+Serial.print("  M3: "); Serial.print(MotorInput3);
+Serial.print("  M4: "); Serial.println(MotorInput4);
+
 
 }

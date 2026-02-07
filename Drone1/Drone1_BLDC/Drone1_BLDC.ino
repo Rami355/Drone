@@ -89,10 +89,10 @@ void motor_setup() {
  *************************************************/
 void motor_drive(double throttle, float R, float P) {
   
-  float MotorInput1 = throttle - R - P;
-  float MotorInput2 = throttle + R - P;
-  float MotorInput3 = throttle - R + P;
-  float MotorInput4 = throttle + R + P;
+  float MotorInput1 = throttle - R + P;
+  float MotorInput2 = throttle + R + P;
+  float MotorInput3 = throttle - R - P;
+  float MotorInput4 = throttle + R - P;
 
   MotorInput1 = constrain(MotorInput1, 1000, 2000);
   MotorInput2 = constrain(MotorInput2, 1000, 2000);
